@@ -1,165 +1,118 @@
-import { useEffect, useState } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import "./App.css";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import Home from "./pages/Home";
+import ProductDetail from "./pages/ProductDetail";
+import Cart from "./pages/Cart";
+import Orders from "./pages/Orders";
+import Admin from "./pages/Admin";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import { useAuth } from "./context/AuthContext";
+import Dashboard from "./pages/Dashboard";
+
+// Protected Route Component
+function ProtectedRoute({ children, requiredRole }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return (
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-lg p-8 text-center mt-20">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">
+            Access Denied
+          </h1>
+          <p className="text-gray-600">
+            You don't have permission to access this page.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return children;
+}
 
 function App() {
-  const [users, setUsers] = useState([]);
-  const [formData, setFormData] = useState({ nama: "", email: "" });
-  const [editingUserId, setEditingUserId] = useState(null);
-
-  const fetchUsers = () => {
-    fetch("http://localhost:8000/user")
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Raw API response:", data);
-
-        if (Array.isArray(data.result)) {
-          setUsers(data.result);
-        } else {
-          console.error("API result is not an array:", data);
-          setUsers([]);
-        }
-      })
-      .catch((error) => console.error("Error fetching users:", error));
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (editingUserId) {
-      // Edit user
-      fetch(`http://localhost:8000/user/${editingUserId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      })
-        .then((response) => response.json())
-        .then(() => {
-          fetchUsers(); // Refetch users after editing
-          setEditingUserId(null);
-          setFormData({ nama: "", email: "" });
-        });
-    } else {
-      // Add user
-      fetch("http://localhost:8000/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      })
-        .then((response) => response.json())
-        .then(() => {
-          fetchUsers(); // Refetch users after adding
-          setFormData({ nama: "", email: "" });
-        });
-    }
-  };
-
-  const handleEdit = (user) => {
-    setEditingUserId(user.id);
-    setFormData({ nama: user.nama, email: user.email });
-  };
-
-  const handleDelete = (id) => {
-    fetch(`http://localhost:8000/user/${id}`, {
-      method: "DELETE",
-    }).then(() => {
-      fetchUsers(); // Refetch users after deleting
-    });
-  };
+  const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <div className="max-w-7xl mx-auto bg-white shadow-md rounded-lg p-6">
-        <h1 className="text-2xl font-bold mb-4">User Management</h1>
+    <Router>
+      <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100">
+        {/* Navigation */}
+        <Navbar />
 
-        <form onSubmit={handleSubmit} className="mb-4">
-          <div className="mb-2">
-            <label className="block text-gray-700">Name</label>
-            <input
-              type="text"
-              name="nama"
-              value={formData.nama}
-              onChange={handleInputChange}
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              required
+        {/* Main Content */}
+        <main className="flex-1 p-4 md:p-8">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/product/:id" element={<Home />} />
+            <Route
+              path="/login"
+              element={user ? <Navigate to="/" /> : <Login />}
             />
-          </div>
-          <div className="mb-2">
-            <label className="block text-gray-700">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              required
+            <Route
+              path="/register"
+              element={user ? <Navigate to="/" /> : <Register />}
             />
-          </div>
-          <button
-            type="submit"
-            className="bg-green-500 text-white px-4 py-2 rounded"
-          >
-            {editingUserId ? "Update User" : "Add User"}
-          </button>
-        </form>
+            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route
+              path="/cart"
+              element={
+                <ProtectedRoute>
+                  <Cart />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <Orders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Admin />                              
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/Dashboard"
+              element={
+               <ProtectedRoute requiredRole="admin">
+                <Dashboard />
+               </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </main>
 
-        {Array.isArray(users) && users.length > 0 ? (
-          <table className="table-auto w-full border-collapse border border-gray-300">
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="border border-gray-300 px-4 py-2">Name</th>
-                <th className="border border-gray-300 px-4 py-2">Email</th>
-                <th className="border border-gray-300 px-4 py-2">Created At</th>
-                <th className="border border-gray-300 px-4 py-2">Updated At</th>
-                <th className="border border-gray-300 px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-100">
-                  <td className="border border-gray-300 px-4 py-2">
-                    {user.nama}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {user.email}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {new Date(user.updated_at).toLocaleDateString()}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2 text-center">
-                    <button
-                      onClick={() => handleEdit(user)}
-                      className="bg-blue-500 text-white px-2 py-1 rounded mr-2"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(user.id)}
-                      className="bg-red-500 text-white px-2 py-1 rounded"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-gray-500">No users found.</p>
-        )}
+        {/* Footer */}
+        <Footer />
       </div>
-    </div>
+    </Router>
   );
 }
 
